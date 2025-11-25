@@ -1,54 +1,31 @@
 package br.inatel.dexmarket.service;
 
 import br.inatel.dexmarket.model.Troca;
-import br.inatel.dexmarket.model.Proposta;
-import br.inatel.dexmarket.repository.TrocaRepository;
-import br.inatel.dexmarket.repository.PropostaRepository;
-import br.inatel.dexmarket.strategy.ValidacaoTrocaStrategy;
-import br.inatel.dexmarket.strategy.ValidacaoTrocaNormal;
+import br.inatel.dexmarket.model.Pokemon;
+import br.inatel.dexmarket.strategy.TradeStrategy;
+import br.inatel.dexmarket.strategy.NormalTrade;
+
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Classe TrocaService - Service de Negócio
- * Gerencia a lógica de negócio relacionada a trocas.
- * 
- * Padrão Strategy: Utiliza diferentes estratégias de validação de trocas.
- * Padrão Repository: Utiliza repositórios para acesso a dados.
- * Padrão Injeção de Dependência: Recebe dependências pelo construtor.
- */
+// Service com Singleton e Strategy aprimorados
 public class TrocaService {
     private TrocaRepository trocaRepository;
     private PropostaRepository propostaRepository;
     private ValidacaoTrocaStrategy estrategiaValidacao;
 
-    // Construtor com injeção de dependências
-    public TrocaService(TrocaRepository trocaRepository, PropostaRepository propostaRepository) {
-        this.trocaRepository = trocaRepository;
-        this.propostaRepository = propostaRepository;
-        // Define a estratégia padrão
-        this.estrategiaValidacao = new ValidacaoTrocaNormal();
-    }
+    // -------- SINGLETON (Thread-safe + double-checked locking) --------
+    private static volatile TrocaService instance;
 
-    /**
-     * Define a estratégia de validação a ser utilizada.
-     * 
-     * @param estrategia A estratégia de validação
-     */
-    public void setEstrategiaValidacao(ValidacaoTrocaStrategy estrategia) {
-        this.estrategiaValidacao = estrategia;
-        System.out.println("Estratégia de validação alterada para: " + estrategia.getDescricao());
-    }
+    private TrocaService() {}
 
-    /**
-     * Cria uma nova troca.
-     * 
-     * @param troca A troca a ser criada
-     * @return A troca criada (com ID atribuído)
-     */
-    public Troca criarTroca(Troca troca) {
-        // Valida a troca usando a estratégia definida
-        if (!estrategiaValidacao.validar(troca)) {
-            throw new IllegalArgumentException("Troca inválida: " + estrategiaValidacao.getDescricao());
+    public static TrocaService getInstance() {
+        if (instance == null) {
+            synchronized (TrocaService.class) {
+                if (instance == null) {
+                    instance = new TrocaService();
+                }
+            }
         }
 
         // Salva a troca no repositório
@@ -74,93 +51,70 @@ public class TrocaService {
         return trocaRepository.findByStatus("Ativa");
     }
 
-    /**
-     * Lista todas as trocas concluídas de um jogador.
-     * 
-     * @param idJogador ID do jogador
-     * @return Lista de trocas concluídas
-     */
-    public List<Troca> listarTrocasConcluidasDoJogador(int idJogador) {
-        List<Troca> trocas = trocaRepository.findByIdJogadorOfertante(idJogador);
-        trocas.removeIf(t -> !t.getStatus().equals("Concluída"));
-        return trocas;
+    // -------- ATRIBUTOS DE NEGÓCIO --------
+    private TradeStrategy strategy = new NormalTrade(); // estratégia padrão
+    private final List<Troca> historicoTrocas = new ArrayList<>();
+
+    // -------- MÉTODOS PRINCIPAIS --------
+
+    /** Define a estratégia da troca. */
+    public void setStrategy(TradeStrategy strategy) {
+        this.strategy = strategy != null ? strategy : new NormalTrade();
+        log("Estratégia definida: " + this.strategy.getClass().getSimpleName());
     }
 
-    /**
-     * Lista todas as trocas de um jogador.
-     * 
-     * @param idJogador ID do jogador
-     * @return Lista de trocas do jogador
-     */
-    public List<Troca> listarTrocasDoJogador(int idJogador) {
-        return trocaRepository.findByIdJogadorOfertante(idJogador);
+    /** Executa a troca aplicando Strategy + validações */
+    public void realizarTroca(Troca troca) {
+
+        validarTroca(troca);
+        log("Iniciando troca usando: " + strategy.getClass().getSimpleName());
+
+        strategy.executarTroca(troca.getPokemonA(), troca.getPokemonB());
+
+        historicoTrocas.add(troca);
+        log("Troca concluída com sucesso!");
     }
 
-    /**
-     * Atualiza o status de uma troca.
-     * 
-     * @param idTroca ID da troca
-     * @param novoStatus Novo status
-     * @return A troca atualizada
-     */
-    public Troca atualizarStatusTroca(int idTroca, String novoStatus) {
-        Troca troca = trocaRepository.findById(idTroca);
-        if (troca != null) {
-            troca.setStatus(novoStatus); // Isso dispara o notifyObservers()
-            return trocaRepository.update(troca);
-        }
-        System.out.println("Troca não encontrada: " + idTroca);
-        return null;
+    // -------- VALIDAÇÕES E LÓGICA DE NEGÓCIO --------
+
+    /** Validação completa da troca */
+    public void validarTroca(Troca troca) {
+
+        if (troca == null)
+            throw new IllegalArgumentException("Objeto Troca não pode ser nulo.");
+
+        Pokemon a = troca.getPokemonA();
+        Pokemon b = troca.getPokemonB();
+
+        if (a == null || b == null)
+            throw new IllegalArgumentException("Pokémons da troca não podem ser nulos.");
+
+        if (a.equals(b))
+            throw new IllegalArgumentException("Não é possível trocar o mesmo Pokémon!");
+
+        if (a.getRaridade() < 0 || b.getRaridade() < 0)
+            throw new IllegalArgumentException("Raridade inválida nos Pokémons.");
+
+        log("Troca validada.");
     }
 
-    /**
-     * Processa uma proposta (aceita ou recusa).
-     * 
-     * @param idProposta ID da proposta
-     * @param aceitar true para aceitar, false para recusar
-     * @return A proposta processada
-     */
-    public Proposta processarProposta(int idProposta, boolean aceitar) {
-        Proposta proposta = propostaRepository.findById(idProposta);
-        if (proposta == null) {
-            System.out.println("Proposta não encontrada: " + idProposta);
-            return null;
-        }
+    /** Exemplo útil ao projeto: calcula benefício relativo entre os Pokémons */
+    public int calcularBeneficioTroca(Troca troca) {
+        int beneficio = troca.getPokemonB().getRaridade() - troca.getPokemonA().getRaridade();
 
-        if (aceitar) {
-            proposta.setStatus("Aceita");
-            System.out.println("Proposta aceita: " + idProposta);
-            
-            // Atualiza a troca para "Concluída"
-            Troca troca = trocaRepository.findById(proposta.getIdTroca());
-            if (troca != null) {
-                atualizarStatusTroca(troca.getIdTroca(), "Concluída");
-            }
-        } else {
-            proposta.setStatus("Recusada");
-            System.out.println("Proposta recusada: " + idProposta);
-        }
-
-        return propostaRepository.update(proposta);
+        log("Benefício da troca: " + beneficio);
+        return beneficio;
     }
 
-    /**
-     * Lista todas as propostas de uma troca.
-     * 
-     * @param idTroca ID da troca
-     * @return Lista de propostas da troca
-     */
-    public List<Proposta> listarPropostasDeUmaTroca(int idTroca) {
-        return propostaRepository.findByIdTroca(idTroca);
+    // -------- HISTÓRICO --------
+
+    public List<Troca> getHistoricoTrocas() {
+        return List.copyOf(historicoTrocas);
     }
 
-    /**
-     * Deleta uma troca.
-     * 
-     * @param idTroca ID da troca a ser deletada
-     * @return true se foi deletada, false caso contrário
-     */
-    public boolean deletarTroca(int idTroca) {
-        return trocaRepository.delete(idTroca);
+    // -------- UTILITÁRIOS INTERNOS --------
+
+    private void log(String msg) {
+        System.out.println("[TrocaService] " + msg);
     }
 }
