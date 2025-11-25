@@ -1,247 +1,100 @@
 package br.inatel.dexmarket.service;
 
 import br.inatel.dexmarket.model.Notificacao;
-import br.inatel.dexmarket.model.Notificacao.TipoNotificacao;
+import br.inatel.dexmarket.model.Troca;
+import br.inatel.dexmarket.observer.Observer;
 import br.inatel.dexmarket.repository.NotificacaoRepository;
 
 /**
- * Serviço de notificações implementando padrão SINGLETON
+ * Classe NotificacaoService - Observer e Service
+ * Implementa o padrão Observer para reagir a mudanças de estado em Trocas.
+ * Também gerencia a lógica de negócio relacionada a notificações.
  * 
- * Responsabilidades:
- * - Gerenciar envio de notificações
- * - Garantir única instância do serviço no sistema
- * - Integrar com diferentes canais de notificação (futuro: email, WebSocket, push)
- * - Coordenar com o repositório de notificações
- * 
- * Padrão: Singleton (Creational)
- * Thread-Safety: Sim (eager initialization)
- * 
- * Este serviço segue o princípio da Responsabilidade Única (SRP):
- * - Foca apenas em ENVIAR notificações
- * - Delega persistência ao NotificacaoRepository
- * - Não contém lógica de negócio de trocas
- * 
- * @author DexMarket Team
- * @version 1.0
+ * Padrão Observer: Esta classe é um Observer que reage quando uma Troca muda de status.
  */
-public class NotificacaoService {
-    
-    // ================== SINGLETON PATTERN ==================
-    
-    /**
-     * Instância única do serviço (Eager Initialization)
-     * Thread-safe: ClassLoader garante inicialização única
-     */
-    private static final NotificacaoService INSTANCE = new NotificacaoService();
-    
-    /**
-     * Repository para persistência de notificações
-     * Também é Singleton - sempre a mesma instância
-     */
-    private final NotificacaoRepository notificacaoRepository;
-    
-    // ================== CONSTRUTOR PRIVADO ==================
-    
-    /**
-     * Construtor privado - impede instanciação externa
-     * Inicializa dependências necessárias
-     */
-    private NotificacaoService() {
-        this.notificacaoRepository = NotificacaoRepository.getInstance();
-        System.out.println("📬 NotificacaoService inicializado (Singleton)");
+public class NotificacaoService implements Observer {
+    private NotificacaoRepository notificacaoRepository;
+
+    // Construtor com injeção de dependência
+    public NotificacaoService(NotificacaoRepository notificacaoRepository) {
+        this.notificacaoRepository = notificacaoRepository;
     }
-    
-    // ================== ACESSO À INSTÂNCIA ==================
-    
+
     /**
-     * Retorna a instância única do serviço
+     * Método do padrão Observer - chamado quando uma Troca sofre alteração.
      * 
-     * @return instância singleton do NotificacaoService
+     * @param troca A troca que sofreu alteração
      */
-    public static NotificacaoService getInstance() {
-        return INSTANCE;
-    }
-    
-    // ================== MÉTODOS DE NEGÓCIO ==================
-    
-    /**
-     * Envia uma notificação completa
-     * 
-     * Este é o método principal que coordena:
-     * 1. Validação da notificação
-     * 2. Persistência no repositório
-     * 3. Envio para canais externos (futuro)
-     * 
-     * @param notificacao notificação a ser enviada
-     * @throws IllegalArgumentException se notificação for inválida
-     */
-    public void enviarNotificacao(Notificacao notificacao) {
-        if (notificacao == null) {
-            throw new IllegalArgumentException("Notificação não pode ser nula");
-        }
+    @Override
+    public void update(Troca troca) {
+        String mensagem = "Troca #" + troca.getIdTroca() + " teve seu status alterado para: " + troca.getStatus();
+        System.out.println("[OBSERVER] " + mensagem);
         
-        // 1. Salva no repositório (histórico)
-        notificacaoRepository.salvar(notificacao);
-        
-        // 2. Envia para canais externos (simulado)
-        simularEnvioExterno(notificacao);
-        
-        // 3. Log de confirmação
-        System.out.println("📬 Notificação enviada com sucesso: " + notificacao);
-    }
-    
-    /**
-     * Notifica um jogador específico sobre um evento
-     * 
-     * Método de conveniência que cria e envia notificação em uma única operação
-     * 
-     * @param nomeJogador nome do jogador a ser notificado
-     * @param mensagem conteúdo da mensagem
-     */
-    public void notificarJogador(String nomeJogador, String mensagem) {
-        if (nomeJogador == null || nomeJogador.trim().isEmpty()) {
-            System.err.println("⚠️  Nome do jogador inválido");
-            return;
-        }
-        
+        // Cria uma notificação para o jogador ofertante
         Notificacao notificacao = new Notificacao(
-            nomeJogador, 
-            mensagem, 
-            TipoNotificacao.NOVA_TROCA
+            troca.getIdJogadorOfertante(),
+            "AtualizacaoTroca",
+            mensagem
         );
         
-        enviarNotificacao(notificacao);
+        // Salva a notificação no repositório
+        notificacaoRepository.save(notificacao);
     }
-    
+
     /**
-     * Notifica sobre troca aceita
+     * Envia uma notificação genérica.
      * 
-     * @param nomeJogador nome do jogador
-     * @param mensagem detalhes da troca aceita
+     * @param idDestinatario ID do jogador destinatário
+     * @param tipo Tipo de notificação
+     * @param mensagem Mensagem da notificação
+     * @return A notificação criada
      */
-    public void notificarTrocaAceita(String nomeJogador, String mensagem) {
-        Notificacao notificacao = new Notificacao(
-            nomeJogador,
-            mensagem,
-            TipoNotificacao.TROCA_ACEITA
-        );
-        enviarNotificacao(notificacao);
+    public Notificacao enviarNotificacao(int idDestinatario, String tipo, String mensagem) {
+        Notificacao notificacao = new Notificacao(idDestinatario, tipo, mensagem);
+        return notificacaoRepository.save(notificacao);
     }
-    
+
     /**
-     * Notifica sobre troca recusada
+     * Busca uma notificação pelo ID.
      * 
-     * @param nomeJogador nome do jogador
-     * @param mensagem motivo da recusa
+     * @param idNotificacao ID da notificação
+     * @return A notificação encontrada
      */
-    public void notificarTrocaRecusada(String nomeJogador, String mensagem) {
-        Notificacao notificacao = new Notificacao(
-            nomeJogador,
-            mensagem,
-            TipoNotificacao.TROCA_RECUSADA
-        );
-        enviarNotificacao(notificacao);
+    public Notificacao buscarNotificacao(int idNotificacao) {
+        return notificacaoRepository.findById(idNotificacao);
     }
-    
+
     /**
-     * Notifica serviço externo (analytics, logs, etc)
+     * Lista todas as notificações de um jogador.
      * 
-     * Usado para integração com sistemas externos:
-     * - Sistema de analytics
-     * - Auditoria
-     * - Monitoramento
-     * - Webhooks
-     * 
-     * @param mensagem mensagem para o serviço externo
+     * @param idJogador ID do jogador
+     * @return Lista de notificações do jogador
      */
-    public void notificarServicoExterno(String mensagem) {
-        Notificacao notificacao = new Notificacao(
-            "SISTEMA_EXTERNO", 
-            mensagem, 
-            TipoNotificacao.SISTEMA
-        );
-        
-        enviarNotificacao(notificacao);
-        
-        // Simula integração externa
-        System.out.println("🔔 Serviço externo notificado: " + mensagem);
+    public java.util.List<Notificacao> listarNotificacoesDoJogador(int idJogador) {
+        return notificacaoRepository.findByIdDestinatario(idJogador);
     }
-    
-    // ================== MÉTODOS DE CONSULTA ==================
-    
+
     /**
-     * Retorna total de notificações enviadas
+     * Lista todas as notificações não lidas de um jogador.
      * 
-     * @return quantidade de notificações no sistema
+     * @param idJogador ID do jogador
+     * @return Lista de notificações não lidas
      */
-    public int getTotalNotificacoes() {
-        return notificacaoRepository.contarNotificacoes();
+    public java.util.List<Notificacao> listarNotificacoesNaoLidas(int idJogador) {
+        return notificacaoRepository.findByIdDestinatarioAndNaoLidas(idJogador);
     }
-    
+
     /**
-     * Busca notificações de um jogador específico
+     * Marca uma notificação como lida.
      * 
-     * @param nomeJogador nome do jogador
-     * @return lista de notificações do jogador
+     * @param idNotificacao ID da notificação
      */
-    public java.util.List<Notificacao> buscarNotificacoesJogador(String nomeJogador) {
-        return notificacaoRepository.buscarPorDestinatario(nomeJogador);
-    }
-    
-    /**
-     * Exibe estatísticas de notificações
-     */
-    public void exibirEstatisticas() {
-        notificacaoRepository.exibirEstatisticas();
-    }
-    
-    // ================== MÉTODOS PRIVADOS ==================
-    
-    /**
-     * Simula envio para canais externos
-     * 
-     * Em produção, aqui seria:
-     * - Envio de email (JavaMail)
-     * - Push notification (Firebase)
-     * - WebSocket (STOMP)
-     * - SMS (Twilio)
-     * - Slack/Discord webhook
-     * 
-     * @param notificacao notificação a ser enviada
-     */
-    private void simularEnvioExterno(Notificacao notificacao) {
-        // Simula delay de rede (comentar em produção)
-        try {
-            Thread.sleep(10); // 10ms
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+    public void marcarComoLida(int idNotificacao) {
+        Notificacao notificacao = notificacaoRepository.findById(idNotificacao);
+        if (notificacao != null) {
+            notificacao.marcarComoLida();
+            notificacaoRepository.update(notificacao);
+            System.out.println("Notificação marcada como lida: " + idNotificacao);
         }
-        
-        // Log simulando diferentes canais
-        switch (notificacao.getTipo()) {
-            case NOVA_TROCA:
-            case TROCA_ACEITA:
-            case TROCA_RECUSADA:
-                // Simula envio WebSocket para jogador online
-                System.out.println("   📱 [WebSocket] → " + notificacao.getDestinatario());
-                break;
-            case SISTEMA:
-                // Simula envio para sistema de analytics
-                System.out.println("   📊 [Analytics] → Evento registrado");
-                break;
-            default:
-                System.out.println("   📧 [Email] → " + notificacao.getDestinatario());
-        }
-    }
-    
-    /**
-     * Formata mensagem de notificação com template
-     * 
-     * @param template template da mensagem
-     * @param params parâmetros para substituir no template
-     * @return mensagem formatada
-     */
-    private String formatarMensagem(String template, Object... params) {
-        return String.format(template, params);
     }
 }

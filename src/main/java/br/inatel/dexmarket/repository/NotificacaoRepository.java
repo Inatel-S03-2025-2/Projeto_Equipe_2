@@ -1,168 +1,58 @@
 package br.inatel.dexmarket.repository;
 
 import br.inatel.dexmarket.model.Notificacao;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
- * Repositório de notificações implementando padrão SINGLETON
- * 
- * Responsabilidades:
- * - Manter única instância do repositório
- * - Simular persistência em memória (futuramente será banco de dados)
- * - Fornecer operações CRUD básicas
- * 
- * Padrão: Singleton (Creational)
- * Thread-Safety: Sim (eager initialization)
- * 
- * @author DexMarket Team
- * @version 1.0
+ * Interface NotificacaoRepository - Padrão Repository
+ * Define o contrato para operações de acesso a dados de Notificações.
  */
-public class NotificacaoRepository {
-    
-    // ================== SINGLETON PATTERN ==================
-    
+public interface NotificacaoRepository {
     /**
-     * Instância única do repositório (Eager Initialization)
-     * Criada no momento do carregamento da classe
-     * Thread-safe por padrão (ClassLoader é thread-safe)
-     */
-    private static final NotificacaoRepository INSTANCE = new NotificacaoRepository();
-    
-    /**
-     * "Banco de dados" em memória
-     * Simula tabela de notificações
-     * Em produção, seria substituído por JPA/Hibernate
-     */
-    private final List<Notificacao> notificacoes;
-    
-    // ================== CONSTRUTOR PRIVADO ==================
-    
-    /**
-     * Construtor privado - impede instanciação externa
-     * Apenas a própria classe pode criar instâncias
-     * Garante o padrão Singleton
-     */
-    private NotificacaoRepository() {
-        this.notificacoes = new ArrayList<>();
-        System.out.println("🗄️  NotificacaoRepository inicializado (Singleton)");
-    }
-    
-    // ================== ACESSO À INSTÂNCIA ==================
-    
-    /**
-     * Retorna a instância única do repositório
+     * Salva uma notificação no repositório.
      * 
-     * @return instância singleton do repositório
+     * @param notificacao A notificação a ser salva
+     * @return A notificação salva (com ID atribuído, se for inserção)
      */
-    public static NotificacaoRepository getInstance() {
-        return INSTANCE;
-    }
-    
-    // ================== OPERAÇÕES CRUD ==================
-    
+    Notificacao save(Notificacao notificacao);
+
     /**
-     * Salva uma notificação no repositório
+     * Busca uma notificação pelo ID.
      * 
-     * @param notificacao notificação a ser salva
-     * @throws IllegalArgumentException se notificação for null
+     * @param id O ID da notificação
+     * @return A notificação encontrada, ou null se não existir
      */
-    public void salvar(Notificacao notificacao) {
-        if (notificacao == null) {
-            throw new IllegalArgumentException("Notificação não pode ser nula");
-        }
-        notificacoes.add(notificacao);
-        System.out.println("💾 Notificação salva no repositório");
-    }
-    
+    Notificacao findById(int id);
+
     /**
-     * Lista todas as notificações do sistema
+     * Lista todas as notificações de um destinatário.
      * 
-     * @return cópia da lista de notificações (imutabilidade)
+     * @param idDestinatario O ID do jogador destinatário
+     * @return Lista de notificações do jogador
      */
-    public List<Notificacao> listarTodas() {
-        return new ArrayList<>(notificacoes);
-    }
-    
+    List<Notificacao> findByIdDestinatario(int idDestinatario);
+
     /**
-     * Conta o total de notificações no repositório
+     * Lista todas as notificações não lidas de um destinatário.
      * 
-     * @return quantidade de notificações
+     * @param idDestinatario O ID do jogador destinatário
+     * @return Lista de notificações não lidas
      */
-    public int contarNotificacoes() {
-        return notificacoes.size();
-    }
-    
+    List<Notificacao> findByIdDestinatarioAndNaoLidas(int idDestinatario);
+
     /**
-     * Busca notificações por destinatário
+     * Atualiza uma notificação existente.
      * 
-     * @param destinatario nome do destinatário
-     * @return lista de notificações do destinatário
+     * @param notificacao A notificação com dados atualizados
+     * @return A notificação atualizada
      */
-    public List<Notificacao> buscarPorDestinatario(String destinatario) {
-        if (destinatario == null || destinatario.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        return notificacoes.stream()
-                .filter(n -> n.getDestinatario().equals(destinatario))
-                .collect(Collectors.toList());
-    }
-    
+    Notificacao update(Notificacao notificacao);
+
     /**
-     * Busca notificações por tipo
+     * Deleta uma notificação pelo ID.
      * 
-     * @param tipo tipo de notificação
-     * @return lista de notificações do tipo especificado
+     * @param id O ID da notificação a ser deletada
+     * @return true se foi deletada, false caso contrário
      */
-    public List<Notificacao> buscarPorTipo(Notificacao.TipoNotificacao tipo) {
-        if (tipo == null) {
-            return new ArrayList<>();
-        }
-        
-        return notificacoes.stream()
-                .filter(n -> n.getTipo() == tipo)
-                .collect(Collectors.toList());
-    }
-    
-    /**
-     * Remove todas as notificações (útil para testes)
-     */
-    public void limparTodas() {
-        notificacoes.clear();
-        System.out.println("🗑️  Todas as notificações foram removidas");
-    }
-    
-    /**
-     * Retorna as últimas N notificações
-     * 
-     * @param quantidade número de notificações a retornar
-     * @return lista com as últimas notificações
-     */
-    public List<Notificacao> buscarUltimas(int quantidade) {
-        if (quantidade <= 0 || notificacoes.isEmpty()) {
-            return new ArrayList<>();
-        }
-        
-        int inicio = Math.max(0, notificacoes.size() - quantidade);
-        return new ArrayList<>(notificacoes.subList(inicio, notificacoes.size()));
-    }
-    
-    /**
-     * Exibe estatísticas do repositório
-     */
-    public void exibirEstatisticas() {
-        System.out.println("\n📊 Estatísticas do Repositório:");
-        System.out.println("   Total de notificações: " + contarNotificacoes());
-        System.out.println("   Tipos:");
-        for (Notificacao.TipoNotificacao tipo : Notificacao.TipoNotificacao.values()) {
-            long count = notificacoes.stream()
-                    .filter(n -> n.getTipo() == tipo)
-                    .count();
-            if (count > 0) {
-                System.out.println("     - " + tipo + ": " + count);
-            }
-        }
-    }
+    boolean delete(int id);
 }

@@ -10,6 +10,9 @@ import java.util.List;
 
 // Service com Singleton e Strategy aprimorados
 public class TrocaService {
+    private TrocaRepository trocaRepository;
+    private PropostaRepository propostaRepository;
+    private ValidacaoTrocaStrategy estrategiaValidacao;
 
     // -------- SINGLETON (Thread-safe + double-checked locking) --------
     private static volatile TrocaService instance;
@@ -24,7 +27,28 @@ public class TrocaService {
                 }
             }
         }
-        return instance;
+
+        // Salva a troca no repositório
+        return trocaRepository.save(troca);
+    }
+
+    /**
+     * Busca uma troca pelo ID.
+     * 
+     * @param idTroca ID da troca
+     * @return A troca encontrada
+     */
+    public Troca buscarTroca(int idTroca) {
+        return trocaRepository.findById(idTroca);
+    }
+
+    /**
+     * Lista todas as trocas ativas.
+     * 
+     * @return Lista de trocas com status "Ativa"
+     */
+    public List<Troca> listarTrocasAtivas() {
+        return trocaRepository.findByStatus("Ativa");
     }
 
     // -------- ATRIBUTOS DE NEGÓCIO --------

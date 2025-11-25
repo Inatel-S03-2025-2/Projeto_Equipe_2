@@ -1,56 +1,60 @@
 package br.inatel.dexmarket.repository;
 
 import br.inatel.dexmarket.model.Pokemon;
-
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-public class PokemonRepository {
+/**
+ * Interface PokemonRepository - Padrão Repository
+ * Define o contrato para operações de acesso a dados de Pokémons.
+ * 
+ * Benefício: Abstrai a lógica de persistência (banco de dados, arquivos, etc.)
+ * permitindo trocar a implementação sem afetar o código de negócio.
+ */
+public interface PokemonRepository {
+    /**
+     * Salva um Pokémon no repositório.
+     * 
+     * @param pokemon O Pokémon a ser salvo
+     * @return O Pokémon salvo (com ID atribuído, se for inserção)
+     */
+    Pokemon save(Pokemon pokemon);
 
-    // --- SINGLETON ---
-    private static volatile PokemonRepository instance;
+    /**
+     * Busca um Pokémon pelo ID.
+     * 
+     * @param id O ID do Pokémon
+     * @return O Pokémon encontrado, ou null se não existir
+     */
+    Pokemon findById(int id);
 
-    // "banco" em memória
-    private final Map<Integer, Pokemon> pokemons = new HashMap<>();
+    /**
+     * Lista todos os Pokémons.
+     * 
+     * @return Lista de todos os Pokémons
+     */
+    List<Pokemon> findAll();
 
-    // construtor privado
-    private PokemonRepository() {
-        // dados de exemplo pra não ficar vazio
-        save(new Pokemon(1, "Bulbasaur", "Grama/Veneno",
-                "https://img.pokemondb.net/artwork/bulbasaur.jpg", 1));
-        save(new Pokemon(2, "Charizard", "Fogo/Voador",
-                "https://img.pokemondb.net/artwork/charizard.jpg", 2));
-        save(new Pokemon(3, "Mewtwo", "Psíquico",
-                "https://img.pokemondb.net/artwork/mewtwo.jpg", 3));
-    }
+    /**
+     * Lista todos os Pokémons de um jogador.
+     * 
+     * @param idJogador O ID do jogador
+     * @return Lista de Pokémons do jogador
+     */
+    List<Pokemon> findByIdJogador(int idJogador);
 
-    public static PokemonRepository getInstance() {
-        if (instance == null) {
-            synchronized (PokemonRepository.class) {
-                if (instance == null) {
-                    instance = new PokemonRepository();
-                }
-            }
-        }
-        return instance;
-    }
+    /**
+     * Atualiza um Pokémon existente.
+     * 
+     * @param pokemon O Pokémon com dados atualizados
+     * @return O Pokémon atualizado
+     */
+    Pokemon update(Pokemon pokemon);
 
-    // CRUD básico
-    public void save(Pokemon pokemon) {
-        pokemons.put(pokemon.getIdPokemon(), pokemon);
-    }
-
-    public Pokemon findById(int id) {
-        return pokemons.get(id);
-    }
-
-    public List<Pokemon> findAll() {
-        return new ArrayList<>(pokemons.values());
-    }
-
-    public void delete(int id) {
-        pokemons.remove(id);
-    }
+    /**
+     * Deleta um Pokémon pelo ID.
+     * 
+     * @param id O ID do Pokémon a ser deletado
+     * @return true se foi deletado, false caso contrário
+     */
+    boolean delete(int id);
 }
