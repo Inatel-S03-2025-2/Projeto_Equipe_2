@@ -1,47 +1,96 @@
 package br.inatel.dexmarket.service;
 
 import br.inatel.dexmarket.model.Troca;
+import br.inatel.dexmarket.model.Pokemon;
 import br.inatel.dexmarket.strategy.TradeStrategy;
 import br.inatel.dexmarket.strategy.NormalTrade;
-import br.inatel.dexmarket.strategy.RareTrade;
 
-// Service com Singleton e Strategy
+import java.util.ArrayList;
+import java.util.List;
+
+// Service com Singleton e Strategy aprimorados
 public class TrocaService {
 
-    // -------- SINGLETON --------
-    private static TrocaService instance;
+    // -------- SINGLETON (Thread-safe + double-checked locking) --------
+    private static volatile TrocaService instance;
 
-    private TrocaService() {} // Construtor privado
+    private TrocaService() {}
 
     public static TrocaService getInstance() {
         if (instance == null) {
-            instance = new TrocaService();
+            synchronized (TrocaService.class) {
+                if (instance == null) {
+                    instance = new TrocaService();
+                }
+            }
         }
         return instance;
     }
 
-    // -------- STRATEGY --------
-    private TradeStrategy strategy;
+    // -------- ATRIBUTOS DE NEGÓCIO --------
+    private TradeStrategy strategy = new NormalTrade(); // estratégia padrão
+    private final List<Troca> historicoTrocas = new ArrayList<>();
 
-    // Define a estratégia em tempo de execução
+    // -------- MÉTODOS PRINCIPAIS --------
+
+    /** Define a estratégia da troca. */
     public void setStrategy(TradeStrategy strategy) {
-        this.strategy = strategy;
+        this.strategy = strategy != null ? strategy : new NormalTrade();
+        log("Estratégia definida: " + this.strategy.getClass().getSimpleName());
     }
 
-    // Executa a troca de acordo com a estratégia definida
-    public void executarTroca(Troca troca) {
-        if (strategy == null) {
-            System.out.println("Nenhuma estratégia definida! Usando troca padrão.");
-            strategy = new NormalTrade();
-        }
+    /** Executa a troca aplicando Strategy + validações */
+    public void realizarTroca(Troca troca) {
+
+        validarTroca(troca);
+        log("Iniciando troca usando: " + strategy.getClass().getSimpleName());
+
         strategy.executarTroca(troca.getPokemonA(), troca.getPokemonB());
+
+        historicoTrocas.add(troca);
+        log("Troca concluída com sucesso!");
     }
 
-    // Exemplo de método auxiliar de negócio
+    // -------- VALIDAÇÕES E LÓGICA DE NEGÓCIO --------
+
+    /** Validação completa da troca */
     public void validarTroca(Troca troca) {
-        if (troca.getPokemonA().equals(troca.getPokemonB())) {
+
+        if (troca == null)
+            throw new IllegalArgumentException("Objeto Troca não pode ser nulo.");
+
+        Pokemon a = troca.getPokemonA();
+        Pokemon b = troca.getPokemonB();
+
+        if (a == null || b == null)
+            throw new IllegalArgumentException("Pokémons da troca não podem ser nulos.");
+
+        if (a.equals(b))
             throw new IllegalArgumentException("Não é possível trocar o mesmo Pokémon!");
-        }
-        System.out.println("Troca validada com sucesso.");
+
+        if (a.getRaridade() < 0 || b.getRaridade() < 0)
+            throw new IllegalArgumentException("Raridade inválida nos Pokémons.");
+
+        log("Troca validada.");
+    }
+
+    /** Exemplo útil ao projeto: calcula benefício relativo entre os Pokémons */
+    public int calcularBeneficioTroca(Troca troca) {
+        int beneficio = troca.getPokemonB().getRaridade() - troca.getPokemonA().getRaridade();
+
+        log("Benefício da troca: " + beneficio);
+        return beneficio;
+    }
+
+    // -------- HISTÓRICO --------
+
+    public List<Troca> getHistoricoTrocas() {
+        return List.copyOf(historicoTrocas);
+    }
+
+    // -------- UTILITÁRIOS INTERNOS --------
+
+    private void log(String msg) {
+        System.out.println("[TrocaService] " + msg);
     }
 }
