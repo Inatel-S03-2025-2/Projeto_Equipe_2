@@ -1,4 +1,4 @@
-﻿#  Dex Market
+#  Dex Market
 
 Sistema backend para gerenciamento e troca de Pokémon entre usuários.  
 O projeto visa implementar uma arquitetura modular, aplicando boas práticas de programação orientada a objetos e padrões arquiteturais adequados para o domínio de trocas e registros de Pokémon.
