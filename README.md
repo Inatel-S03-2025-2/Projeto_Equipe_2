@@ -261,9 +261,7 @@ Os seguintes endpoints foram implementados no `TrocaController` e simulados na c
 
 ##  Próximos Passos
 
-- Adicionar testes unitários (JUnit)
-
-- Escrever documentação técnica e diagrama UML atualizado
+- Escrever diagrama UML atualizado
 
 ---
 
@@ -293,3 +291,4 @@ Este projeto é de uso acadêmico e não possui licença comercial no momento.
 A estrutura e o código estão sendo ajustados conforme as decisões arquiteturais são tomadas.
 
 O objetivo atual é garantir uma base sólida para o backend antes da integração com frontend ou banco de dados.
+
